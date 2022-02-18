@@ -92,7 +92,7 @@ class JsonSchemaController @Inject()(
                 "action" -> action,
                 "id" -> schemaId,
                 "status" -> "error",
-                "errors" -> report.asScala.map(_.getMessage)
+                "message" -> report.asScala.map(_.getMessage).mkString
               ))
             }
           case None =>

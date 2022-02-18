@@ -97,9 +97,7 @@ class JsonSchemaControllerITSpec extends PlaySpec with GuiceOneServerPerSuite wi
         "action" -> "validateDocument",
         "id" -> schemaId,
         "status" -> "error",
-        "errors" -> Json.arr(
-          """object has missing required properties (["name"])"""
-        )
+        "message" -> """object has missing required properties (["name"])"""
       )
     }
 
