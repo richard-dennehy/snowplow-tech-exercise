@@ -145,6 +145,27 @@ class JsonSchemaControllerITSpec extends PlaySpec with GuiceOneServerPerSuite wi
       )
       validateResponse.status mustBe OK
     }
+
+    "strip nested null values from the provided JSON document" in {
+      val schemaId = UUID.randomUUID().toString
+
+      val uploadResponse = await(wsClient.url(s"$baseUrl/schema/$schemaId").post(simplifiedConfigSchema))
+      uploadResponse.status mustBe CREATED
+
+      val document = Json.obj(
+        "chunks" -> Json.obj(
+          "size" -> 1024,
+          "number" -> JsNull,
+        )
+      )
+      val validateResponse = await(wsClient.url(s"$baseUrl/validate/$schemaId").post(document))
+      validateResponse.json mustBe Json.obj(
+        "action" -> "validateDocument",
+        "id" -> schemaId,
+        "status" -> "success",
+      )
+      validateResponse.status mustBe OK
+    }
   }
 
   private lazy val basicSchema = Json.obj(
@@ -160,5 +181,19 @@ class JsonSchemaControllerITSpec extends PlaySpec with GuiceOneServerPerSuite wi
     "$schema" -> "http://json-schema.org/draft-04/schema#",
     "type" -> "object",
     "additionalProperties" -> false
+  )
+
+  private lazy val simplifiedConfigSchema = Json.obj(
+    "$schema" -> "http://json-schema.org/draft-04/schema#",
+    "type" -> "object",
+    "properties" -> Json.obj(
+      "chunks" -> Json.obj(
+        "type" -> "object",
+        "properties" -> Json.obj(
+          "size" -> Json.obj("type" -> "integer"),
+          "number" -> Json.obj("type" -> "integer"),
+        )
+      )
+    )
   )
 }

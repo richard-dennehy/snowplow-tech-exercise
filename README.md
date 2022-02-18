@@ -12,5 +12,5 @@ The service uses MongoDB to persist schemas, so Mongo must be running on port 27
 
 **To test the use case from the instructions**
 - Run the service as described above
-- `curl http://localhost:9000/schema/config-schema -X POST -d @use-case/config-schema.json`
-- `curl http://localhost:9000/validate/config-schema -X POST -d @use-case/config.json`
+- `curl http://localhost:9000/schema/config-schema -d @use-case/config-schema.json -H "Content-Type: application/json"`
+- `curl http://localhost:9000/validate/config-schema -X POST -d @use-case/config.json -H "Content-Type: application/json"`

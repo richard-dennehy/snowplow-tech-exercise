@@ -62,9 +62,11 @@ class JsonSchemaController @Inject()(
     def trimNulls(json: JsValue): JsValue = {
       json match {
         case JsObject(underlying) =>
-          JsObject(underlying.filter {
-            case (_, JsNull) => false
-            case _ => true
+          JsObject(underlying.flatMap {
+            case (_, JsNull) =>
+              None
+            case (k, v) =>
+              Some(k -> trimNulls(v))
           })
         case _ => json
       }
