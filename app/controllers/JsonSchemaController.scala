@@ -4,39 +4,43 @@ import com.github.fge.jackson.JsonLoader
 import com.github.fge.jsonschema.main.JsonSchemaFactory
 import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
 import play.api.mvc._
+import repositories.SchemaRepository
 
 import javax.inject.Inject
-import scala.collection.mutable
+import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
-class JsonSchemaController @Inject()(val controllerComponents: ControllerComponents) extends BaseController {
-  private val inMemorySchemas: mutable.Map[String, JsValue] = mutable.Map.empty
+class JsonSchemaController @Inject()(
+  val controllerComponents: ControllerComponents,
+  repository: SchemaRepository,
+)(implicit ec: ExecutionContext) extends BaseController {
   private val schemaFactory = JsonSchemaFactory.byDefault()
 
-  def uploadSchema(schemaId: String): Action[AnyContent] = Action { request =>
+  def uploadSchema(schemaId: String): Action[AnyContent] = Action.async { request =>
     val action = "uploadSchema"
 
     request.body.asJson match {
       case Some(json) =>
-        inMemorySchemas(schemaId) = json
-        Created(Json.obj(
-          "action" -> action,
-          "id" -> schemaId,
-          "status" -> "success"
-        ))
-      case None => BadRequest(Json.obj(
+        repository.insert(schemaId, json).map { _ =>
+          Created(Json.obj(
+            "action" -> action,
+            "id" -> schemaId,
+            "status" -> "success"
+          ))
+        }
+      case None => Future.successful(BadRequest(Json.obj(
         "action" -> action,
         "id" -> schemaId,
         "status" -> "error",
         "message" -> "Invalid JSON"
-      ))
+      )))
     }
   }
 
-  def getSchema(schemaId: String): Action[AnyContent] = Action { _ =>
+  def getSchema(schemaId: String): Action[AnyContent] = Action.async { _ =>
     val action = "getSchema"
 
-    inMemorySchemas.get(schemaId) match {
+    repository.get(schemaId) map {
       case Some(schema) =>
         Ok(Json.obj(
           "action" -> action,
@@ -54,7 +58,7 @@ class JsonSchemaController @Inject()(val controllerComponents: ControllerCompone
     }
   }
 
-  def validate(schemaId: String): Action[AnyContent] = Action { request =>
+  def validate(schemaId: String): Action[AnyContent] = Action.async { request =>
     def trimNulls(json: JsValue): JsValue = {
       json match {
         case JsObject(underlying) =>
@@ -71,7 +75,7 @@ class JsonSchemaController @Inject()(val controllerComponents: ControllerCompone
       case Some(json) =>
         val trimmed = trimNulls(json)
         val payloadAsJackson = JsonLoader.fromString(trimmed.toString())
-        inMemorySchemas.get(schemaId) match {
+        repository.get(schemaId) map {
           case Some(schema) =>
             val schemaAsJackson = JsonLoader.fromString(schema.toString())
             val report = schemaFactory.getValidator.validate(schemaAsJackson, payloadAsJackson)
@@ -98,12 +102,12 @@ class JsonSchemaController @Inject()(val controllerComponents: ControllerCompone
             ))
         }
       case None =>
-        BadRequest(Json.obj(
+        Future.successful(BadRequest(Json.obj(
           "action" -> action,
           "id" -> schemaId,
           "status" -> "error",
           "message" -> "Invalid JSON"
-        ))
+        )))
     }
   }
 }
